@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResearchGPT</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root { --bg:#f7f7f8; --card:#fff; --border:#e5e5e5; --text:#1a1a1a; --sub:#6b6b6b;
+        --accent:#4f46e5; --accent-light:#eef2ff; --green:#059669; --red:#dc2626; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; }
+
+/* Header */
+.header { padding:12px 20px; background:var(--card); border-bottom:1px solid var(--border);
+           display:flex; align-items:center; gap:12px; }
+.header h1 { font-size:18px; font-weight:600; }
+.header .status { font-size:12px; padding:3px 10px; border-radius:12px; }
+.header .status.ok { background:#ecfdf5; color:var(--green); }
+.header .status.err { background:#fef2f2; color:var(--red); }
+.header .stats { margin-left:auto; font-size:12px; color:var(--sub); }
+
+/* Main layout */
+.main { flex:1; display:flex; overflow:hidden; }
+
+/* Sidebar */
+.sidebar { width:280px; border-right:1px solid var(--border); background:var(--card);
+           display:flex; flex-direction:column; }
+.sidebar h3 { padding:14px 16px 8px; font-size:13px; font-weight:600; color:var(--sub); text-transform:uppercase; letter-spacing:.5px; }
+.upload-zone { margin:8px 12px; padding:20px; border:2px dashed var(--border); border-radius:10px;
+               text-align:center; font-size:13px; color:var(--sub); cursor:pointer; transition:all .2s; }
+.upload-zone:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
+.upload-zone input { display:none; }
+.doc-list { flex:1; overflow-y:auto; padding:4px 12px; }
+.doc-item { padding:8px 10px; margin:4px 0; border-radius:8px; background:var(--bg); font-size:13px; }
+.doc-item .name { font-weight:500; }
+.doc-item .meta { font-size:11px; color:var(--sub); margin-top:2px; }
+
+/* Chat area */
+.chat-area { flex:1; display:flex; flex-direction:column; }
+.messages { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px; }
+.msg { max-width:85%; line-height:1.7; font-size:14px; }
+.msg.user { align-self:flex-end; background:var(--accent); color:#fff; padding:10px 16px;
+            border-radius:18px 18px 4px 18px; }
+.msg.assistant { align-self:flex-start; background:var(--card); padding:14px 18px;
+                 border-radius:18px 18px 18px 4px; border:1px solid var(--border); }
+.msg.assistant .intent-badge { display:inline-block; font-size:11px; padding:2px 8px; border-radius:10px;
+                                margin-bottom:6px; font-weight:500; }
+.msg.assistant .intent-badge.direct_search { background:#dbeafe; color:#1e40af; }
+.msg.assistant .intent-badge.deep_research { background:#ede9fe; color:#5b21b6; }
+.msg.assistant .intent-badge.need_clarify { background:#fef3c7; color:#92400e; }
+.msg.assistant .intent-badge.chitchat { background:#f3f4f6; color:#374151; }
+.msg.assistant .intent-badge.follow_up { background:#d1fae5; color:#065f46; }
+.msg.assistant .content { white-space:pre-wrap; }
+.msg.assistant .citations { margin-top:10px; padding-top:8px; border-top:1px solid var(--border);
+                            font-size:12px; color:var(--sub); }
+.msg.assistant .plan-info { margin-top:8px; font-size:12px; color:var(--sub);
+                            background:var(--bg); padding:8px 10px; border-radius:6px; }
+.msg.system { align-self:center; font-size:12px; color:var(--sub); background:var(--bg);
+              padding:4px 12px; border-radius:12px; }
+.typing { align-self:flex-start; padding:10px 18px; background:var(--card); border:1px solid var(--border);
+          border-radius:18px; display:flex; gap:4px; align-items:center; }
+.typing span { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:bounce 1.4s infinite ease-in-out; }
+.typing span:nth-child(2) { animation-delay:.16s; }
+.typing span:nth-child(3) { animation-delay:.32s; }
+@keyframes bounce { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1)} }
+
+/* Input */
+.input-bar { padding:12px 20px; background:var(--card); border-top:1px solid var(--border);
+             display:flex; gap:10px; }
+.input-bar input { flex:1; padding:10px 16px; border:1.5px solid var(--border); border-radius:12px;
+                   font-size:14px; outline:none; transition:border .2s; }
+.input-bar input:focus { border-color:var(--accent); }
+.input-bar button { padding:10px 24px; background:var(--accent); color:#fff; border:none;
+                    border-radius:12px; font-size:14px; font-weight:500; cursor:pointer; transition:opacity .2s; }
+.input-bar button:hover { opacity:.9; }
+.input-bar button:disabled { background:#d1d5db; cursor:not-allowed; }
+
+/* Quick actions */
+.quick-actions { padding:8px 20px; display:flex; gap:6px; flex-wrap:wrap; }
+.quick-btn { font-size:12px; padding:5px 12px; border:1px solid var(--border); border-radius:16px;
+             background:var(--card); cursor:pointer; transition:all .15s; color:var(--sub); }
+.quick-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
+
+/* Mobile */
+@media(max-width:768px) {
+  .sidebar { display:none; }
+  .msg { max-width:95%; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>ResearchGPT</h1>
+  <div class="status" id="status">检查中...</div>
+  <div class="stats" id="stats"></div>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <h3>知识库文档</h3>
+    <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+      📄 点击上传文档<br><small>.txt .md .pdf</small>
+      <input type="file" id="fileInput" accept=".txt,.md,.pdf" onchange="uploadFile(this)">
+    </div>
+    <div class="doc-list" id="docList"></div>
+    <h3>记忆状态</h3>
+    <div class="doc-list" id="memoryInfo" style="font-size:12px;color:var(--sub);padding:8px 16px;"></div>
+  </div>
+
+  <div class="chat-area">
+    <div class="messages" id="messages">
+      <div class="msg system">上传文档到知识库，然后开始提问</div>
+    </div>
+    <div class="quick-actions">
+      <button class="quick-btn" onclick="sendQuick('RAG和Fine-tune各自适用什么场景？')">RAG vs Fine-tune</button>
+      <button class="quick-btn" onclick="sendQuick('Transformer的注意力机制原理是什么？')">注意力机制</button>
+      <button class="quick-btn" onclick="sendQuick('对比FAISS和Milvus的优缺点')">FAISS vs Milvus</button>
+      <button class="quick-btn" onclick="sendQuick('总结一下我之前研究过什么')">回顾研究</button>
+    </div>
+    <div class="input-bar">
+      <input id="input" placeholder="输入研究问题..." onkeydown="if(event.key==='Enter')send()">
+      <button id="sendBtn" onclick="send()">发送</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let sessionId = 'session_' + Date.now().toString(36);
+let sending = false;
+
+// --- Health check ---
+async function checkHealth() {
+  try {
+    const r = await fetch(API + '/health');
+    const d = await r.json();
+    const el = document.getElementById('status');
+    el.textContent = d.index_size > 0 ? `已就绪 · ${d.index_size} 向量` : '已连接 · 无索引';
+    el.className = 'status ok';
+    loadDocs();
+    loadMemory();
+  } catch(e) {
+    const el = document.getElementById('status');
+    el.textContent = '未连接';
+    el.className = 'status err';
+  }
+}
+
+// --- Document management ---
+async function loadDocs() {
+  try {
+    const r = await fetch(API + '/documents/list');
+    const d = await r.json();
+    const el = document.getElementById('docList');
+    if (!d.documents || d.documents.length === 0) {
+      el.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--sub)">暂无文档</div>';
+      return;
+    }
+    el.innerHTML = d.documents.map(doc =>
+      `<div class="doc-item"><div class="name">${doc.title}</div><div class="meta">${doc.num_chunks} 个片段</div></div>`
+    ).join('');
+    document.getElementById('stats').textContent = `${d.total_chunks} 片段`;
+  } catch(e) {}
+}
+
+async function uploadFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  addMsg('system', `正在上传 ${file.name}...`);
+  const form = new FormData();
+  form.append('file', file);
+  form.append('chunking_strategy', file.name.endsWith('.md') ? 'structured' : 'recursive');
+  try {
+    const r = await fetch(API + '/documents/upload', {method:'POST', body:form});
+    const d = await r.json();
+    addMsg('system', `✅ ${d.message}`);
+    loadDocs();
+    checkHealth();
+  } catch(e) {
+    addMsg('system', `❌ 上传失败: ${e.message}`);
+  }
+  input.value = '';
+}
+
+// --- Memory ---
+async function loadMemory() {
+  try {
+    const r = await fetch(API + `/memory/stats?session_id=${sessionId}`);
+    const d = await r.json();
+    document.getElementById('memoryInfo').innerHTML =
+      `短期: ${d.short_term.total_turns} 轮${d.short_term.has_summary ? ' (有摘要)' : ''}<br>` +
+      `长期: ${d.long_term.total_memories} 条<br>` +
+      `索引: ${d.index.index_vectors} 向量`;
+  } catch(e) {}
+}
+
+// --- Chat ---
+function addMsg(type, content, extra={}) {
+  const el = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `msg ${type}`;
+
+  if (type === 'assistant') {
+    let html = '';
+    if (extra.intent) {
+      html += `<div class="intent-badge ${extra.intent}">${extra.intent}</div>`;
+    }
+    html += `<div class="content">${escapeHtml(content)}</div>`;
+    if (extra.citations && Object.keys(extra.citations).length > 0) {
+      const cites = Object.entries(extra.citations).map(([id, info]) =>
+        `[${id}] ${info.doc_title}${info.section ? ' > '+info.section : ''}`
+      ).join('\n');
+      html += `<div class="citations">📎 引用来源:\n${escapeHtml(cites)}</div>`;
+    }
+    if (extra.plan) {
+      const steps = (extra.plan.steps||[]).map(s => `${s.step_id}. ${s.description}`).join('\n');
+      html += `<div class="plan-info">📋 执行计划 (${extra.plan.complexity||'?'}):\n${escapeHtml(steps)}</div>`;
+    }
+    div.innerHTML = html;
+  } else {
+    div.textContent = content;
+  }
+
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+  return div;
+}
+
+function showTyping() {
+  const el = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'typing';
+  div.id = 'typing';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+function hideTyping() {
+  const el = document.getElementById('typing');
+  if (el) el.remove();
+}
+
+async function send() {
+  const input = document.getElementById('input');
+  const msg = input.value.trim();
+  if (!msg || sending) return;
+
+  sending = true;
+  document.getElementById('sendBtn').disabled = true;
+  input.value = '';
+  addMsg('user', msg);
+  showTyping();
+
+  try {
+    const r = await fetch(API + '/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg, session_id: sessionId}),
+    });
+    const d = await r.json();
+    hideTyping();
+    addMsg('assistant', d.response, {
+      intent: d.intent,
+      citations: d.citations,
+      plan: d.plan,
+    });
+    loadMemory();
+  } catch(e) {
+    hideTyping();
+    addMsg('system', `❌ 请求失败: ${e.message}`);
+  }
+
+  sending = false;
+  document.getElementById('sendBtn').disabled = false;
+  input.focus();
+}
+
+function sendQuick(text) {
+  document.getElementById('input').value = text;
+  send();
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// Init
+checkHealth();
+setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>

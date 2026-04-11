@@ -1,0 +1,24 @@
+# ResearchGPT 依赖
+
+# Web 框架
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# LLM API (DeepSeek 兼容 OpenAI SDK)
+openai>=1.6.0
+
+# 向量检索
+faiss-cpu>=1.7.4
+sentence-transformers>=2.2.0
+
+# 文档处理
+PyMuPDF>=1.23.0
+
+# Web 搜索 + 抓取
+duckduckgo-search>=6.0.0
+requests>=2.31.0
+
+# 工具库
+numpy>=1.24.0
+pydantic>=2.0.0

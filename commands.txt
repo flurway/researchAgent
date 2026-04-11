@@ -1,0 +1,6 @@
+# 上传文档 + 直接开始对话
+python cli.py upload paper.pdf --chat
+
+# 或者分步来
+python cli.py upload paper.pdf
+python cli.py chat
