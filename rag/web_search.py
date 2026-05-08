@@ -38,12 +38,6 @@ class WebSearcher:
     使用 duckduckgo-search (免费，无需 API Key)
     生产环境可替换为: Bing Search API / Google Custom Search / Tavily / SerpAPI
     
-    面试延伸:
-    Q: 搜索结果的质量怎么保证？
-    A: 1. 多 query 策略: 一个问题生成多个搜索 query，覆盖不同角度
-       2. 结果去重: 同一个 URL 只保留一次
-       3. 优先级排序: 学术来源 (arxiv, scholar) > 技术博客 > 一般网页
-       4. 搜索结果也走 rerank，只保留与原始问题相关的结果
     """
 
     def __init__(self, max_results: int = 8):
@@ -122,10 +116,6 @@ class WebSearcher:
         """
         多 query 搜索 + 去重融合
 
-        面试点: 为什么要用多个 query？
-        答: 单个 query 可能有信息偏差。
-            例: "RAG 的缺点" 和 "RAG limitations challenges" 搜到的内容不同。
-            多 query 能覆盖更多角度。
         """
         tasks = [self.search(q, max_results=max_per_query) for q in queries]
         all_results = await asyncio.gather(*tasks)
@@ -164,11 +154,6 @@ class WebFetcher:
     网页内容抓取器
 
     抓取网页并提取正文 (去除 HTML 标签、导航栏、广告等)
-    
-    面试点: 为什么不直接把整个 HTML 丢给 LLM？
-    答: 1. HTML 标签、CSS、JS 占了 80%+ 的 token，正文只有 20%
-       2. 导航栏、侧边栏、页脚等噪声会干扰 LLM 理解
-       3. 清洗后的正文: 信噪比高，token 使用效率高
     """
 
     def __init__(self, timeout: int = 15, max_content_length: int = 8000):
